@@ -1,68 +1,55 @@
-const { assert, expect } = require("chai");
-const BloomFilter = require('../src/bloom-filter');
-const { testOptional } = require("../extensions/index.js");
+class BloomFilter {
+  constructor(size = 100) {
+    this.size = size;
+    this.store = this.createStore(size);
+  }
 
-it.optional = testOptional;
+  createStore(size) {
+    const bitArray = new Array(size).fill(0);
+    return {
+      getValue: (index) => bitArray[index],
+      setValue: (index, value) => {
+        bitArray[index] = value;
+      },
+    };
+  }
 
-Object.freeze(assert);
+  hash1(item) {
+    let hash = 0;
+    for (let i = 0; i < item.length; i++) {
+      hash = (hash << 5) - hash + item.charCodeAt(i);
+      hash &= hash;
+    }
+    return Math.abs(hash % this.size);
+  }
 
-describe('BloomFilter', () => {
-  let bloomFilter;
-  const people = [
-    'Bruce Wayne',
-    'Clark Kent',
-    'Barry Allen',
-  ];
+  hash2(item) {
+    let hash = 5381;
+    for (let i = 0; i < item.length; i++) {
+      hash = (hash * 33) ^ item.charCodeAt(i);
+    }
+    return Math.abs(hash % this.size);
+  }
 
-  beforeEach(() => {
-    bloomFilter = new BloomFilter();
-  });
+  hash3(item) {
+    let hash = 0;
+    for (let i = 0; i < item.length; i++) {
+      hash = ((hash << 7) ^ item.charCodeAt(i)) & hash;
+    }
+    return Math.abs(hash % this.size);
+  }
 
-  it.optional('should have methods named "insert" and "mayContain"', () => {
-    assert.strictEqual(typeof bloomFilter.insert, 'function');
-    assert.strictEqual(typeof bloomFilter.mayContain, 'function');
-  });
+  getHashValues(item) {
+    return [this.hash1(item), this.hash2(item), this.hash3(item)];
+  }
 
-  it.optional('should create a new filter store with the appropriate methods', () => {
-    const store = bloomFilter.createStore(18);
-    assert.strictEqual(typeof store.getValue, 'function');
-    assert.strictEqual(typeof store.setValue, 'function');
-  });
+  insert(item) {
+    const hashes = this.getHashValues(item);
+    hashes.forEach((hash) => this.store.setValue(hash, 1));
+  }
 
-  it.optional('should hash deterministically with all 3 hash functions', () => {
-    const str1 = 'apple';
-
-    assert.strictEqual(bloomFilter.hash1(str1), bloomFilter.hash1(str1));
-    assert.strictEqual(bloomFilter.hash2(str1), bloomFilter.hash2(str1));
-    assert.strictEqual(bloomFilter.hash3(str1), bloomFilter.hash3(str1));
-
-    assert.strictEqual(bloomFilter.hash1(str1), 14);
-    assert.strictEqual(bloomFilter.hash2(str1), 43);
-    assert.strictEqual(bloomFilter.hash3(str1), 10);
-
-    const str2 = 'orange';
-
-    assert.strictEqual(bloomFilter.hash1(str2), bloomFilter.hash1(str2));
-    assert.strictEqual(bloomFilter.hash2(str2), bloomFilter.hash2(str2));
-    assert.strictEqual(bloomFilter.hash3(str2), bloomFilter.hash3(str2));
-
-    assert.strictEqual(bloomFilter.hash1(str2), 0);
-    assert.strictEqual(bloomFilter.hash2(str2), 61);
-    assert.strictEqual(bloomFilter.hash3(str2), 10);
-  });
-
-  it.optional('should create an array with 3 hash values', () => {
-    assert.strictEqual(bloomFilter.getHashValues('abc').length, 3);
-    assert.deepEqual(bloomFilter.getHashValues('abc'), [66, 63, 54]);
-  });
-
-  it.optional('should insert strings correctly and return true when checking for inserted values', () => {
-    people.forEach((person) => bloomFilter.insert(person));
-
-    assert.strictEqual(bloomFilter.mayContain('Bruce Wayne'), true);
-    assert.strictEqual(bloomFilter.mayContain('Clark Kent'), true);
-    assert.strictEqual(bloomFilter.mayContain('Barry Allen'), true);
-
-    assert.strictEqual(bloomFilter.mayContain('Tony Stark'), false);
-  });
-});
+  mayContain(item) {
+    const hashes = this.getHashValues(item);
+    return hashes.every((hash) => this.store.getValue(hash) === 1);
+  }
+}

@@ -1,44 +1,55 @@
-const { NotImplementedError } = require("../extensions/index.js");
-
-// const { Node } = require('../extensions/list-tree.js');
-
-/**
- * Implement simple binary search tree according to task description
- * using Node from extensions
- */
-module.exports = class BinarySearchTree {
-  root() {
-    throw new NotImplementedError("Not implemented");
-    // remove line with error and write your code here
+module.exports = class BloomFilter {
+  constructor(size = 100) {
+    this.size = size;
+    this.store = this.createStore(size);
   }
 
-  add(/* data */) {
-    throw new NotImplementedError("Not implemented");
-    // remove line with error and write your code here
+  insert(item) {
+    const hashes = this.getHashValues(item);
+    hashes.forEach((hash) => this.store.setValue(hash, 1));
   }
 
-  has(/* data */) {
-    throw new NotImplementedError("Not implemented");
-    // remove line with error and write your code here
+  mayContain(item) {
+    const hashes = this.getHashValues(item);
+    return hashes.every((hash) => this.store.getValue(hash) === 1);
   }
 
-  find(/* data */) {
-    throw new NotImplementedError("Not implemented");
-    // remove line with error and write your code here
+  createStore(size) {
+    const bitArray = new Array(size).fill(0);
+    return {
+      getValue: (index) => bitArray[index],
+      setValue: (index, value) => {
+        bitArray[index] = value;
+      },
+    };
   }
 
-  remove(/* data */) {
-    throw new NotImplementedError("Not implemented");
-    // remove line with error and write your code here
+  hash1(item) {
+    let hash = 0;
+    for (let i = 0; i < item.length; i++) {
+      hash = (hash << 5) - hash + item.charCodeAt(i);
+      hash &= hash;
+    }
+    return Math.abs(hash % this.size);
   }
 
-  min() {
-    throw new NotImplementedError("Not implemented");
-    // remove line with error and write your code here
+  hash2(item) {
+    let hash = 5381;
+    for (let i = 0; i < item.length; i++) {
+      hash = (hash * 33) ^ item.charCodeAt(i);
+    }
+    return Math.abs(hash % this.size);
   }
 
-  max() {
-    throw new NotImplementedError("Not implemented");
-    // remove line with error and write your code here
+  hash3(item) {
+    let hash = 0;
+    for (let i = 0; i < item.length; i++) {
+      hash = ((hash << 7) ^ item.charCodeAt(i)) & hash;
+    }
+    return Math.abs(hash % this.size);
+  }
+
+  getHashValues(item) {
+    return [this.hash1(item), this.hash2(item), this.hash3(item)];
   }
 };
